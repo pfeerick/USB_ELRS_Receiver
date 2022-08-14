@@ -99,19 +99,19 @@ uint8_t const desc_hid_report[] = {
 };
 
 typedef struct gamepad_data {
-  uint16_t ch[8];  // 16bit 8ch
-  uint8_t sw;      // 1bit 8ch
+  uint16_t ch[8];  // 16 bit 8ch
+  uint8_t sw;      //  1 bit 8ch
 } gp_t;
 
 uint8_t rxbuf[CRSF_MAX_PACKET_LEN + 3];  // Raw data received from the CRSF Rx
 uint8_t rxPos = 0;
 static gamepad_data gp;  // Data sorted by channel
 uint8_t frameSize = 0;
-int datardyf = 0;  // data read to send to USB
-uint32_t gaptime;  // for bus delimiter measurement
+int datardyf = 0;        // Data read to send to USB
+uint32_t gaptime;        // For bus delimiter measurement
 
 #if defined(DEBUG)
-uint32_t time_m;   //  interval time (for debug)
+uint32_t time_m;         // Interval time (for debug)
 void debug_out();
 #endif
 
@@ -133,7 +133,7 @@ void setup()
 
   // For PC serial communication (to match receiver speed)
   Serial.begin(CRSF_BAUDRATE);
-  // For CRSF communication (420kbps,8bitdata,nonParity,1stopbit)
+  // For CRSF communication (420kbps, 8bit data, nonParity, 1 stopbit)
   Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1);
 #if defined(DEBUG)
   time_m = micros();  // For interval measurement
@@ -142,20 +142,18 @@ void setup()
 
 void loop()
 {
-  // Remote wakeup
+  // WAke up host if in suspend mode and REMOTE_WAKEUP feature by host
   if (USBDevice.suspended()) {
-    // Wake up host if we are in suspend mode
-    // and REMOTE_WAKEUP feature is enabled by host
     USBDevice.remoteWakeup();
   }
-  crsf();          // Process CRSF
-  uart();          // UART communication processing (for firmware rewriting)
-  if (datardyf) {  // USB transmission when data is ready
+  crsf();           // Process CRSF
+  uart();           // UART communication processing (for firmware rewriting)
+  if (datardyf) {   // USB transmission when data is ready
     if (usb_hid.ready()) {
       // 17 = sizeof(gp) Directly specify sizeof() as a number since sizeof() size is strange in compile
       usb_hid.sendReport(0, &gp, 17);
 #ifdef DEBUG
-      debug_out();  // for debugging (check values on serial monitor)
+      debug_out();  // For debugging (check values on serial monitor)
 #endif
     }
     datardyf = 0;  // Clear the flag after transmission
@@ -171,11 +169,11 @@ void crsf()
     data = Serial1.read();    // 8-bit data read
     gaptime = micros();
     if (rxPos == 1) {
-      frameSize = data;  // Second byte is the frame size
+      frameSize = data;       // Second byte is the frame size
     }
-    rxbuf[rxPos++] = data;  //  Store received data in buffer
+    rxbuf[rxPos++] = data;    // Store received data in buffer
     if (rxPos > 1 && rxPos >= frameSize + 2) {
-      crsfdecode();  // Decode after receiving one frame
+      crsfdecode();           // Decode after receiving one frame
       rxPos = 0;
     }
   } else {
@@ -190,9 +188,8 @@ void crsf()
 // sift)
 void crsfdecode()
 {
-  if (rxbuf[0] == CRSF_ADDRESS_FLIGHT_CONTROLLER) {  // header check
-    if (rxbuf[2] ==
-        CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {  // Decode if CH data
+  if (rxbuf[0] == CRSF_ADDRESS_FLIGHT_CONTROLLER) {       // header check
+    if (rxbuf[2] == CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {  // Decode if CH data
       gp.sw = 0;
       gp.ch[0] = ((rxbuf[3] | rxbuf[4] << 8) & 0x07ff) << 5;
       gp.ch[1] = ((rxbuf[4] >> 3 | rxbuf[5] << 5) & 0x07ff) << 5;
@@ -240,7 +237,7 @@ void uart()
         Serial.write(Serial1.read());  // Send receiver data to PC
         t = millis();
       }
-    } while (millis() - t < 2000);  // When data stops coming in, it's over
+    } while (millis() - t < 2000);     // When data stops coming in, it's over
   }
 }
 
@@ -251,7 +248,7 @@ void debug_out()
   int i;
   Serial.print(rxbuf[0], HEX);  // device addr
   Serial.print(" ");
-  Serial.print(rxbuf[1]);  // data size +1
+  Serial.print(rxbuf[1]);       // data size +1
   Serial.print(" ");
   Serial.print(rxbuf[2], HEX);  // type
   Serial.print(" ");
@@ -261,7 +258,7 @@ void debug_out()
   }
   Serial.print(gp.sw, BIN);
   Serial.print(" ");
-  Serial.print(micros() - time_m);  //Display interval time (us)
+  Serial.print(micros() - time_m);  // Display interval time (us)
   Serial.println("us");
   time_m = micros();
 }
