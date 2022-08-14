@@ -19,8 +19,6 @@ https://qiita.com/kobatan/items/253f1614a8653a1dcb1a
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h> 
 
-// #define DEBUG
-
 // USB HID report descriptor
 // Specifies the structure of the gamepad data (for radio receiver 
 // (16bit data x 8ch) + (1bit data x 8ch))
