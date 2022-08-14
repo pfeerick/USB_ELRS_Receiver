@@ -4,32 +4,26 @@ https://qiita.com/kobatan/items/253f1614a8653a1dcb1a
 */
 
 /*
+  Connections: 
 
-5V <－－－ ＞ 5V
-GND <－－－ ＞ GND
-RX <－－－ ＞ Be careful not to mistake
-TX <－－－ ＞ RX ELRS communicates with Crossfire protocol,
-              so signal inversion circuit like SBUS Wiring is easy without the need.
-              Both signal lines are 3.3V, so just connect them as they are.
-              The program can easily communicate with ELRS simply by setting the UART
-              baud rate to 420,000. Also, just install Adafruit's TinyUSB library for
-              Arduino in XIAO and it will be easily recognized as a gamepad, so the
-               program is easy.
-               (Once done ... I had a hard time investigating how it works)
-               * Caution *　In the case of early XIAO, it is necessary to set the TinyUSB library version to 0.10.5 .
-                The latest version gives a compile error. With XIAO RP2040, the latest version is OK.
+  5V  <－－－＞ 5V
+  GND <－－－＞ GND
+  RX  <－－－＞ ELRS TX
+  TX  <－－－＞ ELRS RX
 
-https://camo.qiitausercontent.com/bc1d135fc8b25d365a72593a9524bc0f3f4c10c9/68747470733a2f2f71696974612d696d6167652d73746f72652e73332e61702d6e6f727468656173742d312e616d617a6f6e6177732e636f6d2f302f323532303735382f66393961366138392d653838392d646334652d316239332d3065323937613334323965642e6a706567
+  Both signal lines are 3.3V, so just connect them as they are.
+
+  https://camo.qiitausercontent.com/bc1d135fc8b25d365a72593a9524bc0f3f4c10c9/68747470733a2f2f71696974612d696d6167652d73746f72652e73332e61702d6e6f727468656173742d312e616d617a6f6e6177732e636f6d2f302f323532303735382f66393961366138392d653838392d646334652d316239332d3065323937613334323965642e6a706567
 */
 
 #include <Arduino.h>
-#include <Adafruit_TinyUSB.h> /* Adafruit_TinyUSB ライブラリは * XIAO の場合 <Version 0.10.5> を使うこと。それ以上だとXIAOではコンパイルエラーが出ます。 * XIAO RP2040 は最新バージョンでOKです。 */
+#include <Adafruit_TinyUSB.h> 
 
-//#define DEBUG
+// #define DEBUG
 
 // USB HID report descriptor
-// ゲームパッドデータの構造を指定します （プロポ受信機用 (16bitデータ x 8ch) +
-// (1bitデータ x 8ch）)
+// Specifies the structure of the gamepad data (for radio receiver 
+// (16bit data x 8ch) + (1bit data x 8ch))
 #define TUD_HID_REPORT_DESC_GAMEPAD_9(...)                                    \
   HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),                                     \
       HID_USAGE(HID_USAGE_DESKTOP_GAMEPAD),                                   \
@@ -47,7 +41,9 @@ https://camo.qiitausercontent.com/bc1d135fc8b25d365a72593a9524bc0f3f4c10c9/68747
       HID_USAGE_MAX(8), HID_LOGICAL_MIN(0), HID_LOGICAL_MAX(1),               \
       HID_REPORT_COUNT(8), HID_REPORT_SIZE(1),                                \
       HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),                      \
-      HID_COLLECTION_END  // CrossFire用
+      HID_COLLECTION_END  
+
+// CrossFire settings
 #define CRSF_BAUDRATE 420000
 #define CRSF_MAX_PACKET_LEN 64
 #define CRSF_NUM_CHANNELS 16
@@ -60,7 +56,7 @@ typedef enum {
   CRSF_ADDRESS_CURRENT_SENSOR = 0xC0,
   CRSF_ADDRESS_GPS = 0xC2,
   CRSF_ADDRESS_TBS_BLACKBOX = 0xC4,
-  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8,  // 受信データはこれで来る
+  CRSF_ADDRESS_FLIGHT_CONTROLLER = 0xC8,  // Incoming data comes in this
   CRSF_ADDRESS_RESERVED2 = 0xCA,
   CRSF_ADDRESS_RACE_TAG = 0xCC,
   CRSF_ADDRESS_RADIO_TRANSMITTER = 0xEA,
@@ -74,7 +70,7 @@ typedef enum {
   CRSF_FRAMETYPE_LINK_STATISTICS = 0x14,
   CRSF_FRAMETYPE_OPENTX_SYNC = 0x10,
   CRSF_FRAMETYPE_RADIO_ID = 0x3A,
-  CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,  // チャンネルパックフレーム
+  CRSF_FRAMETYPE_RC_CHANNELS_PACKED = 0x16,  // packed channel frame
   CRSF_FRAMETYPE_ATTITUDE = 0x1E,
   CRSF_FRAMETYPE_FLIGHT_MODE = 0x21,
   // Extended Header Frames, range: 0x28 to 0x96
@@ -99,7 +95,7 @@ typedef struct crsf_header_s {
 
 Adafruit_USBD_HID usb_hid;  // USB HID object
 uint8_t const desc_hid_report[] = {
-    TUD_HID_REPORT_DESC_GAMEPAD_9()  // USB GamePad のデータ構造を指定
+    TUD_HID_REPORT_DESC_GAMEPAD_9()  // USB GamePad data structure
 };
 
 typedef struct gamepad_data {
@@ -107,22 +103,25 @@ typedef struct gamepad_data {
   uint8_t sw;      // 1bit 8ch
 } gp_t;
 
-uint8_t rxbuf[CRSF_MAX_PACKET_LEN + 3];  // 受信した生データ
+uint8_t rxbuf[CRSF_MAX_PACKET_LEN + 3];  // Raw data received from the CRSF Rx
 uint8_t rxPos = 0;
-static gamepad_data gp;  // CH毎に並び替えたデータ
+static gamepad_data gp;  // Data sorted by channel
 uint8_t frameSize = 0;
-int datardyf = 0;  // USBに送るデータが揃った。
-uint32_t gaptime;  // bus 区切り測定用
-uint32_t time_m;   // インターバル時間(debug用)
+int datardyf = 0;  // data read to send to USB
+uint32_t gaptime;  // for bus delimiter measurement
+
+#if defined(DEBUG)
+uint32_t time_m;   //  interval time (for debug)
+void debug_out();
+#endif
 
 void crsf();
 void crsfdecode();
 void uart();
-void debug_out();
 
 void setup()
 {
-  // USB HID デバイス設定
+  // USB HID Device Settings
   usb_hid.setPollInterval(2);
   usb_hid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
   usb_hid.begin();
@@ -132,11 +131,13 @@ void setup()
   gaptime = 0;
   rxPos = 0;
 
-  // PCシリアル通信用 (受信機の速度に合わせる)
+  // For PC serial communication (to match receiver speed)
   Serial.begin(CRSF_BAUDRATE);
-  // CRSF通信用 (420kbps,8bitdata,nonParity,1stopbit)
+  // For CRSF communication (420kbps,8bitdata,nonParity,1stopbit)
   Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1);
-  time_m = micros();  // インターバル測定用
+#if defined(DEBUG)
+  time_m = micros();  // For interval measurement
+#endif
 }
 
 void loop()
@@ -147,51 +148,51 @@ void loop()
     // and REMOTE_WAKEUP feature is enabled by host
     USBDevice.remoteWakeup();
   }
-  crsf();          // CRSF受信処理
-  uart();          // UART通信処理(Firmware書き換え用)
-  if (datardyf) {  // データが揃ったらUSB送信
+  crsf();          // Process CRSF
+  uart();          // UART communication processing (for firmware rewriting)
+  if (datardyf) {  // USB transmission when data is ready
     if (usb_hid.ready()) {
-      // 17 = sizeof(gp) コンパイルでsizeof()のサイズが変なので直接数値で指定
+      // 17 = sizeof(gp) Directly specify sizeof() as a number since sizeof() size is strange in compile
       usb_hid.sendReport(0, &gp, 17);
 #ifdef DEBUG
-      debug_out();  // デバッグ用 (シリアルモニターで数値を確認)
+      debug_out();  // for debugging (check values on serial monitor)
 #endif
     }
-    datardyf = 0;  // データ揃ったよフラグをクリア
+    datardyf = 0;  // Clear the flag after transmission
   }
 }
 
-// CRSF受信処理
+//CRSF receive process
 void crsf()
 {
   uint8_t data;
-  // CRSFから1バイト受信
-  if (Serial1.available()) {  // Serial1に受信データがあるなら
-    data = Serial1.read();    // 8ビットデータ読込
+  // byte received from CRSF
+  if (Serial1.available()) {  // If there is incoming data on Serial1
+    data = Serial1.read();    // 8-bit data read
     gaptime = micros();
     if (rxPos == 1) {
-      frameSize = data;  // 2byte目はフレームサイズ
+      frameSize = data;  // Second byte is the frame size
     }
-    rxbuf[rxPos++] = data;  // 受信データをバッファに格納
+    rxbuf[rxPos++] = data;  //  Store received data in buffer
     if (rxPos > 1 && rxPos >= frameSize + 2) {
-      crsfdecode();  // １フレーム受信し終わったらデーコードする
+      crsfdecode();  // Decode after receiving one frame
       rxPos = 0;
     }
   } else {
-    // 800us以上データが来なかったら区切りと判定
+    // If no data comes in for more than 800us, judge as a break
     if (rxPos > 0 && micros() - gaptime > 800) {
       rxPos = 0;
     }
   }
 }
 
-// CRSFから受信した11bitシリアルデータを16bitデータにデコード（さらに底上げ。5bit
-// sift）
+// Decode 11-bit serial data received from CRSF to 16-bit data (further bottom up. 5-bit)
+// sift)
 void crsfdecode()
 {
-  if (rxbuf[0] == CRSF_ADDRESS_FLIGHT_CONTROLLER) {  // ヘッダチェック
+  if (rxbuf[0] == CRSF_ADDRESS_FLIGHT_CONTROLLER) {  // header check
     if (rxbuf[2] ==
-        CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {  // CHデータならデコード
+        CRSF_FRAMETYPE_RC_CHANNELS_PACKED) {  // Decode if CH data
       gp.sw = 0;
       gp.ch[0] = ((rxbuf[3] | rxbuf[4] << 8) & 0x07ff) << 5;
       gp.ch[1] = ((rxbuf[4] >> 3 | rxbuf[5] << 5) & 0x07ff) << 5;
@@ -199,7 +200,7 @@ void crsfdecode()
                  << 5;
       gp.ch[3] = ((rxbuf[7] >> 1 | rxbuf[8] << 7) & 0x07ff) << 5;
       if (((rxbuf[8] >> 4 | rxbuf[9] << 4) & 0x07ff) > 0x3ff)
-        gp.sw |= 0x01;  // AUX1は2値データ
+        gp.sw |= 0x01;  //  AUX1 is binary data
       gp.ch[4] = ((rxbuf[9] >> 7 | rxbuf[10] << 1 | rxbuf[11] << 9) & 0x07ff)
                  << 5;
       gp.ch[5] = ((rxbuf[11] >> 2 | rxbuf[12] << 6) & 0x07ff) << 5;
@@ -216,35 +217,35 @@ void crsfdecode()
       if (((rxbuf[22] >> 2 | rxbuf[23] << 6) & 0x07ff) > 0x3ff) gp.sw |= 0x40;
       if (((rxbuf[23] >> 5 | rxbuf[24] << 3) & 0x07ff) > 0x3ff) gp.sw |= 0x80;
 
-      datardyf = 1;  // データ揃ったよフラグ
+      datardyf = 1;  // set data ready flag
     }
   }
 }
 
-// UART通信処理( Firmware書き換え用 )
-// ExpressLRS Configurator の Flashing Method は [UART]ではなく
-// [BetaflightPassthough] にすること。
+// UART communication process (for firmware rewriting)
+// Flashing Method in ExpressLRS Configurator should be [BetaflightPassthough], not [UART].
 void uart()
 {
   uint32_t t;
 
-  // PCからデータが来たら、強制的に書き換えモードだと判断
+  // When data comes from the PC, it is determined to be in firmware update mode
   if (Serial.available()) {
     t = millis();
     do {
-      while (Serial.available()) {     // PCからデータが来たら
-        Serial1.write(Serial.read());  // PCからのデータを受信機に送る
+      while (Serial.available()) {     // When data comes in from the PC
+        Serial1.write(Serial.read());  // Send data from PC to receiver
         t = millis();
       }
-      while (Serial1.available()) {    // 受信機からデータが来たら
-        Serial.write(Serial1.read());  // 受信機のデータをPCに送る
+      while (Serial1.available()) {    // When data comes in from the receiver
+        Serial.write(Serial1.read());  // Send receiver data to PC
         t = millis();
       }
-    } while (millis() - t < 2000);  // データが来なくなったら終了
+    } while (millis() - t < 2000);  // When data stops coming in, it's over
   }
 }
 
-// シリアルモニターに受信データを表示する（デバック用）
+#if defined(DEBUG)
+// Display received data on serial monitor (for debugging)
 void debug_out()
 {
   int i;
@@ -260,7 +261,8 @@ void debug_out()
   }
   Serial.print(gp.sw, BIN);
   Serial.print(" ");
-  Serial.print(micros() - time_m);  // インターバル時間(us)を表示
+  Serial.print(micros() - time_m);  //Display interval time (us)
   Serial.println("us");
   time_m = micros();
 }
+#endif
