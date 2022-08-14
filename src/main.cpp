@@ -98,7 +98,7 @@ uint8_t const desc_hid_report[] = {
     TUD_HID_REPORT_DESC_GAMEPAD_9()  // USB GamePad data structure
 };
 
-typedef struct gamepad_data {
+typedef struct __attribute__((packed)) gamepad_data {
   uint16_t ch[8];  // 16 bit 8ch
   uint8_t sw;      //  1 bit 8ch
 } gp_t;
@@ -150,8 +150,7 @@ void loop()
   uart();           // UART communication processing (for firmware rewriting)
   if (datardyf) {   // USB transmission when data is ready
     if (usb_hid.ready()) {
-      // 17 = sizeof(gp) Directly specify sizeof() as a number since sizeof() size is strange in compile
-      usb_hid.sendReport(0, &gp, 17);
+      usb_hid.sendReport(0, &gp, sizeof(gp));
 #ifdef DEBUG
       debug_out();  // For debugging (check values on serial monitor)
 #endif
