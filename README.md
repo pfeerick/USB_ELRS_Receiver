@@ -42,10 +42,10 @@ communications, it is necessary to connect RX of one side to the TX of the
 other, and vice versa.
 
 ### XIAO SAMD21
-![XIAO-SAMD21 wiring](doc\xiao-samd21-wiring.png)
+![XIAO-SAMD21 wiring](doc/xiao-samd21-wiring.png)
 
 ### XIAO RP2040
-![XIAO-RP2040 wiring](doc\xiao-rp2040-wiring.png)
+![XIAO-RP2040 wiring](doc/xiao-rp2040-wiring.png)
 
 As you can see from the images, the XIAO boards have a VIN and GND pin at the 
 bottom, which is actually 5V and GND when the USB is plugged in. So you all the 
@@ -58,7 +58,7 @@ build very neat.
 ### XIAO SAMD21 /w  Happymodel EP2 Receiver
 The antenna has seen better days!
 
-![Built SAMD21 CRSF](doc\xiao-samd21-built-unit.png)
+![Built SAMD21 CRSF](doc/xiao-samd21-built-unit.png)
 
 
 ### XIAO RP2040 /w  iFlight 2.4Ghz Receiver
@@ -66,11 +66,11 @@ This isn't as compact as some of the others, but has the added benefit of
 coming with pre-soldered wires on the receiver - just cut the plug off and 
 solder the wires onto the microcontroller!
 
-![Built RP2040 CRSF](doc\xiao-rp2040-built-unit.png)
+![Built RP2040 CRSF](doc/xiao-rp2040-built-unit.png)
 
 
 ## Acknowledgments:
 
 Based on the project originally developed by kobatan:
-https://qiita.com/kobatan/items/40728fbb625057d9f42b
-https://qiita.com/kobatan/items/253f1614a8653a1dcb1a
+- https://qiita.com/kobatan/items/40728fbb625057d9f42b
+- https://qiita.com/kobatan/items/253f1614a8653a1dcb1a
