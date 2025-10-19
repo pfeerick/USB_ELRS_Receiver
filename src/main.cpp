@@ -78,6 +78,13 @@ uint8_t const desc_hid_report[] = {
     TUD_HID_REPORT_DESC_GAMEPAD_9()  // USB GamePad data structure
 };
 
+// Define CRSF serial port based on board type
+#ifdef ARDUINO_RASPBERRY_PI_PICO
+  #define CRSF_SERIAL Serial2
+#else
+  #define CRSF_SERIAL Serial1
+#endif
+
 typedef struct __attribute__((packed)) gamepad_data {
   uint16_t ch[8];  // 16 bit 8ch
   uint8_t sw;      //  1 bit 8ch
@@ -114,7 +121,13 @@ void setup()
   // For PC serial communication (to match receiver speed)
   Serial.begin(CRSF_BAUDRATE);
   // For CRSF communication (420kbps, 8bit data, nonParity, 1 stopbit)
-  Serial1.begin(CRSF_BAUDRATE, SERIAL_8N1);
+#ifdef ARDUINO_RASPBERRY_PI_PICO
+  // For PICO board: set TX(4) and RX(5) pins
+  CRSF_SERIAL.setTX(4);
+  CRSF_SERIAL.setRX(5);
+#endif
+  CRSF_SERIAL.begin(CRSF_BAUDRATE, SERIAL_8N1);
+
 #if defined(DEBUG)
   time_m = micros();  // For interval measurement
 #endif
@@ -144,8 +157,8 @@ void crsf()
 {
   uint8_t data;
   // byte received from CRSF
-  if (Serial1.available()) {  // If there is incoming data on Serial1
-    data = Serial1.read();    // 8-bit data read
+  if (CRSF_SERIAL.available()) {  // If there is incoming data on CRSF serial
+    data = CRSF_SERIAL.read();    // 8-bit data read
     gaptime = micros();
     if (rxPos == 1) {
       frameSize = data;       // Second byte is the frame size
@@ -209,11 +222,11 @@ void uart()
     t = millis();
     do {
       while (Serial.available()) {     // When data comes in from the PC
-        Serial1.write(Serial.read());  // Send data from PC to receiver
+        CRSF_SERIAL.write(Serial.read());  // Send data from PC to receiver
         t = millis();
       }
-      while (Serial1.available()) {    // When data comes in from the receiver
-        Serial.write(Serial1.read());  // Send receiver data to PC
+      while (CRSF_SERIAL.available()) {    // When data comes in from the receiver
+        Serial.write(CRSF_SERIAL.read());  // Send receiver data to PC
         t = millis();
       }
     } while (millis() - t < 2000);     // When data stops coming in, it's over
