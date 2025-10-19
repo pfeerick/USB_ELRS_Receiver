@@ -69,6 +69,8 @@ solder the wires onto the microcontroller!
 ![Built RP2040 CRSF](doc/xiao-rp2040-built-unit.png)
 
 ## Building and Uploading
+You can either download a prebuilt binary from https://github.com/pfeerick/USB_ELRS_Receiver/releases/tag/latest, and install it to your device (for the RP2040/PICO targets it is a simple drag and drop / copy to firmware drive operation), or use the following notes as a guide on how to build the firmware locally, and upload it to your device.
+
 I will assume you have already installed [VSCode](https://code.visualstudio.com/) and [PlatformIO](https://platformio.org/platformio-ide) via the respective installation guides. Once you have download the code from this repo to your computer (either via git clone or [downloading as a zip](https://github.com/pfeerick/USB_ELRS_Receiver/archive/refs/heads/master.zip)), open up the folder in VSCode. You will then be able to choose the PlatformIO "alien head" icon head in the sidebar, and then choose the build and upload task for your desired target. PlatformIO will automatically install the dpendences when you change targets, which may take some minutes to download. 
 
 For example, to build and upload to the XAIO SAMD21 in one step:
