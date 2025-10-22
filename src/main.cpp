@@ -1,6 +1,15 @@
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h> 
 
+// Board name
+#define MANUFACTURER_NAME "USB_ELRS_Receiver"
+#define PRODUCT_NAME     "USB_ELRS_Receiver"
+
+// CrossFire settings
+#define CRSF_BAUDRATE 420000
+#define CRSF_MAX_PACKET_LEN 64
+#define CRSF_NUM_CHANNELS 16
+
 // USB HID report descriptor
 // Specifies the structure of the gamepad data (for radio receiver 
 // (16bit data x 8ch) + (1bit data x 8ch))
@@ -22,11 +31,6 @@
       HID_REPORT_COUNT(8), HID_REPORT_SIZE(1),                                \
       HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),                      \
       HID_COLLECTION_END  
-
-// CrossFire settings
-#define CRSF_BAUDRATE 420000
-#define CRSF_MAX_PACKET_LEN 64
-#define CRSF_NUM_CHANNELS 16
 
 typedef enum {
   CRSF_ADDRESS_BROADCAST = 0x00,
@@ -108,6 +112,11 @@ void uart();
 
 void setup()
 {
+  // Custom board name
+  USBDevice.setManufacturerDescriptor(MANUFACTURER_NAME);
+  USBDevice.setProductDescriptor(PRODUCT_NAME);
+  USBDevice.setID(0x1209, 0x0408); // 0x1209 is common ID for opensource projects, 0x0408 is generated randomly
+
   // USB HID Device Settings
   usb_hid.setPollInterval(2);
   usb_hid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
