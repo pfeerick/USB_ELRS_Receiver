@@ -1,8 +1,24 @@
 #include <Arduino.h>
-#include <Adafruit_TinyUSB.h> 
+#include <Adafruit_TinyUSB.h>
+
+// Board name
+#define MANUFACTURER_NAME "USB_ELRS_Receiver"
+#define PRODUCT_NAME     "USB_ELRS_Receiver"
+
+// CrossFire settings
+#define CRSF_BAUDRATE 420000
+#define CRSF_MAX_PACKET_LEN 64
+#define CRSF_NUM_CHANNELS 16
+
+// LED connection status variables
+uint32_t lastDataAvailable = 0;  // Last time CRSF_SERIAL.available() was true
+uint32_t lastLedToggle = 0;      // Last time LED was toggled
+
+#define LED_BLINK_INTERVAL 500    // LED blink interval when disconnected (ms)
+#define CONNECTION_TIMEOUT 60000  // Time to wait before turning off LED completely (ms)
 
 // USB HID report descriptor
-// Specifies the structure of the gamepad data (for radio receiver 
+// Specifies the structure of the gamepad data (for radio receiver
 // (16bit data x 8ch) + (1bit data x 8ch))
 #define TUD_HID_REPORT_DESC_GAMEPAD_9(...)                                    \
   HID_USAGE_PAGE(HID_USAGE_PAGE_DESKTOP),                                     \
@@ -21,12 +37,7 @@
       HID_USAGE_MAX(8), HID_LOGICAL_MIN(0), HID_LOGICAL_MAX(1),               \
       HID_REPORT_COUNT(8), HID_REPORT_SIZE(1),                                \
       HID_INPUT(HID_DATA | HID_VARIABLE | HID_ABSOLUTE),                      \
-      HID_COLLECTION_END  
-
-// CrossFire settings
-#define CRSF_BAUDRATE 420000
-#define CRSF_MAX_PACKET_LEN 64
-#define CRSF_NUM_CHANNELS 16
+      HID_COLLECTION_END
 
 typedef enum {
   CRSF_ADDRESS_BROADCAST = 0x00,
@@ -78,12 +89,6 @@ uint8_t const desc_hid_report[] = {
     TUD_HID_REPORT_DESC_GAMEPAD_9()  // USB GamePad data structure
 };
 
-// Define CRSF serial port based on board type
-#ifdef ARDUINO_RASPBERRY_PI_PICO
-  #define CRSF_SERIAL Serial2
-#else
-  #define CRSF_SERIAL Serial1
-#endif
 
 typedef struct __attribute__((packed)) gamepad_data {
   uint16_t ch[8];  // 16 bit 8ch
@@ -105,9 +110,15 @@ void debug_out();
 void crsf();
 void crsfdecode();
 void uart();
+void updateLed();
 
 void setup()
 {
+  // Custom board name
+  USBDevice.setManufacturerDescriptor(MANUFACTURER_NAME);
+  USBDevice.setProductDescriptor(PRODUCT_NAME);
+  USBDevice.setID(0x1209, 0x0408); // 0x1209 is common ID for opensource projects, 0x0408 is generated randomly
+
   // USB HID Device Settings
   usb_hid.setPollInterval(2);
   usb_hid.setReportDescriptor(desc_hid_report, sizeof(desc_hid_report));
@@ -128,6 +139,12 @@ void setup()
 #endif
   CRSF_SERIAL.begin(CRSF_BAUDRATE, SERIAL_8N1);
 
+  // Initialize LED pin
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LED_OFF);
+  lastDataAvailable = millis();
+  lastLedToggle = millis();
+
 #if defined(DEBUG)
   time_m = micros();  // For interval measurement
 #endif
@@ -141,6 +158,7 @@ void loop()
   }
   crsf();           // Process CRSF
   uart();           // UART communication processing (for firmware rewriting)
+  updateLed();      // Update LED status
   if (datardyf) {   // USB transmission when data is ready
     if (usb_hid.ready()) {
       usb_hid.sendReport(0, &gp, sizeof(gp));
@@ -158,6 +176,7 @@ void crsf()
   uint8_t data;
   // byte received from CRSF
   if (CRSF_SERIAL.available()) {  // If there is incoming data on CRSF serial
+    lastDataAvailable = millis();  // Update last connection time
     data = CRSF_SERIAL.read();    // 8-bit data read
     gaptime = micros();
     if (rxPos == 1) {
@@ -255,3 +274,27 @@ void debug_out()
   time_m = micros();
 }
 #endif
+
+// LED status update function
+void updateLed()
+{
+  static bool ledState = LED_OFF;
+  uint32_t currentTime = millis();
+  uint32_t timeSinceLastData = currentTime - lastDataAvailable;
+
+  // If we have recent CRSF data (within last 100ms), connection is active
+  if (timeSinceLastData < 100) {
+    // Connected - LED solid ON
+    ledState = LED_ON;
+  } else if (timeSinceLastData < CONNECTION_TIMEOUT) {
+    // Disconnected but within timeout - blink LED every 500ms
+    if (currentTime - lastLedToggle < LED_BLINK_INTERVAL) return;
+    lastLedToggle = currentTime;
+    ledState = !ledState;
+  } else {
+    // Disconnected for more than 60 seconds - turn LED OFF
+    ledState = LED_OFF;
+  }
+
+  digitalWrite(LED_PIN, ledState);
+}
