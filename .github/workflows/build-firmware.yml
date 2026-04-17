@@ -3,7 +3,13 @@ name: Build and Release Firmware
 on:
   push:
     branches:
-      - master
+      - 'master'
+    tags:
+      - v*
+    paths:
+      - '.github/workflows/build-firmware.yml'
+      - 'src/**'
+      - 'platformio.ini'
   workflow_dispatch:
 
 jobs:
