@@ -92,6 +92,7 @@ jobs:
         run: gh release delete latest --yes --cleanup-tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         continue-on-error: true
       
       - name: Create latest release
