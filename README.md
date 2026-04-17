@@ -77,6 +77,9 @@ For example, to build and upload to the XAIO SAMD21 in one step:
 
 ![PIO Upload](doc/pio-upload.png)
 
+## Cases
+- @r0zbot shared this case that suits the SAMD21 as well as a Betaflight SuperD ELRS receiver, with a slot for the antennas.
+https://www.printables.com/model/1573043-xiao-samd21-elrs-usb-box
 
 ## Acknowledgments:
 
